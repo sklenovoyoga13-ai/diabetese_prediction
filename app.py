@@ -48,15 +48,19 @@ st.markdown("""
     .risk-high { background: linear-gradient(135deg, #eb3349 0%, #f45c43 100%); }
     .risk-very-high { background: linear-gradient(135deg, #8E2DE2 0%, #4A00E0 100%); }
     .recommendation-card {
-        background: #f8f9fa;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        margin-bottom: 0.5rem;
-        border-left: 4px solid #667eea;
+        background: #f8f9fa !important;
+        padding: 1.5rem !important;
+        border-radius: 0.5rem !important;
+        margin-bottom: 1.5rem !important;
+        margin-top: 0.5rem !important;
+        border-left: 4px solid #667eea !important;
+        display: block !important;
+        overflow: visible !important;
+        box-sizing: border-box !important;
     }
-    .priority-high { border-left-color: #eb3349; }
-    .priority-medium { border-left-color: #F2994A; }
-    .priority-low { border-left-color: #11998e; }
+    .priority-high { border-left-color: #eb3349 !important; }
+    .priority-medium { border-left-color: #F2994A !important; }
+    .priority-low { border-left-color: #11998e !important; }
     .info-box {
         background: #e8f4f8;
         padding: 1rem;
@@ -264,7 +268,7 @@ def display_recommendations(recommendations):
             for i, rec in enumerate(diet_recs):
                 priority_class = f"priority-{rec.get('priority', 'medium')}"
                 st.markdown(f"""
-                <div class="recommendation-card {priority_class}" style="padding: 1.5rem; margin-bottom: 1rem;">
+                <div class="recommendation-card {priority_class}">
                     <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
                     <p style="margin: 0;">{rec.get('description', '')}</p>
                 </div>
@@ -278,7 +282,7 @@ def display_recommendations(recommendations):
             for rec in lifestyle_recs:
                 priority_class = f"priority-{rec.get('priority', 'medium')}"
                 st.markdown(f"""
-                <div class="recommendation-card {priority_class}" style="padding: 1.5rem; margin-bottom: 1rem;">
+                <div class="recommendation-card {priority_class}">
                     <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
                     <p style="margin: 0;">{rec.get('description', '')}</p>
                 </div>
@@ -293,7 +297,7 @@ def display_recommendations(recommendations):
             for rec in exercise_recs:
                 priority_class = f"priority-{rec.get('priority', 'medium')}"
                 st.markdown(f"""
-                <div class="recommendation-card {priority_class}" style="padding: 1.5rem; margin-bottom: 1rem;">
+                <div class="recommendation-card {priority_class}">
                     <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
                     <p style="margin: 0;">{rec.get('description', '')}</p>
                 </div>
@@ -307,7 +311,7 @@ def display_recommendations(recommendations):
             for rec in medical_recs:
                 priority_class = f"priority-{rec.get('priority', 'medium')}"
                 st.markdown(f"""
-                <div class="recommendation-card {priority_class}" style="padding: 1.5rem; margin-bottom: 1rem;">
+                <div class="recommendation-card {priority_class}">
                     <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
                     <p style="margin: 0;">{rec.get('description', '')}</p>
                 </div>
