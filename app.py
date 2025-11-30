@@ -884,56 +884,49 @@ def main():
                             st.markdown(f"<div style='font-size: 1.5rem; color: {color}; text-align: center;'>{factor['value']}</div>", unsafe_allow_html=True)
                             st.caption(f"Normal: {factor['normal_range']}")
         else:
-            st.markdown("""
-            <div class="info-box">
-                <h3>Welcome to the Diabetes Risk Prediction System</h3>
-                <p>This tool uses machine learning to assess your risk of developing Type 2 diabetes based on key health indicators.</p>
-                <p><strong>How to use:</strong></p>
-                <ol>
-                    <li>Enter your health parameters in the sidebar</li>
-                    <li>Click "Analyze My Risk" to get your assessment</li>
-                    <li>Review your personalized recommendations</li>
-                </ol>
-                <p><em>Note: This tool is for educational purposes only and should not replace professional medical advice.</em></p>
-            </div>
-            """, unsafe_allow_html=True)
+            st.markdown("## Welcome to the Diabetes Risk Prediction System")
+            st.write("This tool uses machine learning to assess your risk of developing Type 2 diabetes based on key health indicators.")
             
-            st.markdown("### Understanding Diabetes Risk Factors")
+            with st.container(border=True):
+                st.markdown("### How to Use")
+                st.write("1. **Enter your health parameters** in the sidebar")
+                st.write("2. **Click 'Analyze My Risk'** to get your assessment")
+                st.write("3. **Review your personalized recommendations** and health insights")
+            
+            st.warning("⚠️ **Disclaimer:** This tool is for educational purposes only and should not replace professional medical advice. Consult with a healthcare provider for accurate diagnosis and treatment.")
+            
+            st.markdown("## Understanding Diabetes Risk Factors")
             
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
-                st.markdown("""
-                **Blood Glucose**
-                - Normal: < 100 mg/dL
-                - Pre-diabetes: 100-125
-                - Diabetes: > 126
-                """)
+                with st.container(border=True):
+                    st.markdown("### 🩸 Blood Glucose")
+                    st.write("- Normal: < 100 mg/dL")
+                    st.write("- Pre-diabetes: 100-125")
+                    st.write("- Diabetes: > 126")
             
             with col2:
-                st.markdown("""
-                **BMI Categories**
-                - Underweight: < 18.5
-                - Normal: 18.5-24.9
-                - Overweight: 25-29.9
-                - Obese: > 30
-                """)
+                with st.container(border=True):
+                    st.markdown("### ⚖️ BMI Categories")
+                    st.write("- Underweight: < 18.5")
+                    st.write("- Normal: 18.5-24.9")
+                    st.write("- Overweight: 25-29.9")
+                    st.write("- Obese: > 30")
             
             with col3:
-                st.markdown("""
-                **Blood Pressure**
-                - Normal: < 80 mmHg
-                - Elevated: 80-89
-                - High: > 90
-                """)
+                with st.container(border=True):
+                    st.markdown("### 💓 Blood Pressure")
+                    st.write("- Normal: < 80 mmHg")
+                    st.write("- Elevated: 80-89")
+                    st.write("- High: > 90")
             
             with col4:
-                st.markdown("""
-                **Age Factor**
-                - Risk increases after 45
-                - Higher risk after 65
-                - Family history matters
-                """)
+                with st.container(border=True):
+                    st.markdown("### 📅 Age Factor")
+                    st.write("- Risk increases after 45")
+                    st.write("- Higher risk after 65")
+                    st.write("- Family history matters")
     
     with tab2:
         if 'prediction_result' in st.session_state and 'user_data' in st.session_state:
