@@ -5,7 +5,14 @@ import pandas as pd
 import numpy as np
 from model import get_predictor
 from ai_recommendations import generate_health_recommendations
+from database import init_db
+from auth import render_auth_ui, is_logged_in, get_current_user_id, get_current_username
+from history import save_prediction, get_user_predictions, get_trend_data, get_stats_summary, save_health_log, get_health_logs
+from pdf_report import generate_pdf_report
+from csv_parser import parse_csv_file, convert_to_prediction_format, get_sample_csv_template, validate_health_values
 import os
+
+init_db()
 
 st.set_page_config(
     page_title="Diabetes Risk Predictor",
@@ -63,6 +70,21 @@ st.markdown("""
         border-radius: 0.5rem;
         border-left: 4px solid #ffc107;
         margin: 1rem 0;
+    }
+    .history-card {
+        background: white;
+        padding: 1rem;
+        border-radius: 0.5rem;
+        border: 1px solid #e0e0e0;
+        margin-bottom: 0.5rem;
+        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    }
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        padding: 1rem;
+        border-radius: 0.5rem;
+        color: white;
+        text-align: center;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -161,10 +183,7 @@ def create_risk_comparison_chart(user_values):
     
     fig = go.Figure()
     
-    categories = list(normal_ranges.keys())
-    
     for i, (cat, vals) in enumerate(normal_ranges.items()):
-        range_mid = (vals['max'] + vals['min']) / 2
         normalized_user = (vals['user'] - vals['min']) / (vals['max'] - vals['min']) * 100
         normalized_user = max(0, min(150, normalized_user))
         
@@ -199,6 +218,32 @@ def create_risk_comparison_chart(user_values):
                   annotation_text="Upper Normal", annotation_position="right")
     fig.add_hline(y=0, line_dash="dash", line_color="green",
                   annotation_text="Lower Normal", annotation_position="right")
+    
+    return fig
+
+def create_trend_chart(trend_data):
+    if not trend_data['dates']:
+        return None
+    
+    fig = go.Figure()
+    
+    fig.add_trace(go.Scatter(
+        x=trend_data['dates'],
+        y=trend_data['risk_scores'],
+        mode='lines+markers',
+        name='Risk Score',
+        line=dict(color='#667eea', width=3),
+        marker=dict(size=8)
+    ))
+    
+    fig.update_layout(
+        title='Risk Score Trend Over Time',
+        xaxis_title='Date',
+        yaxis_title='Risk Score (%)',
+        height=350,
+        yaxis=dict(range=[0, 100]),
+        hovermode='x unified'
+    )
     
     return fig
 
@@ -272,6 +317,374 @@ def display_recommendations(recommendations):
                 st.markdown(f"- {factor}")
             st.markdown("</div>", unsafe_allow_html=True)
 
+
+def render_health_tools_tab():
+    st.markdown("## Health Tools")
+    
+    tool_tabs = st.tabs(["BMI Calculator", "Calorie Tracker", "Exercise Log"])
+    
+    with tool_tabs[0]:
+        st.markdown("### BMI Calculator")
+        
+        calc_col1, calc_col2 = st.columns(2)
+        
+        with calc_col1:
+            calc_height = st.number_input("Height (cm)", min_value=100, max_value=250, value=170, key="bmi_calc_height")
+            calc_weight = st.number_input("Weight (kg)", min_value=30.0, max_value=300.0, value=70.0, step=0.1, key="bmi_calc_weight")
+            
+            if st.button("Calculate BMI", type="primary"):
+                bmi = calc_weight / ((calc_height / 100) ** 2)
+                st.session_state['calculated_bmi'] = bmi
+        
+        with calc_col2:
+            if 'calculated_bmi' in st.session_state:
+                bmi = st.session_state['calculated_bmi']
+                
+                if bmi < 18.5:
+                    category = "Underweight"
+                    color = "#F2C94C"
+                    advice = "Consider consulting a healthcare provider about healthy weight gain."
+                elif bmi < 25:
+                    category = "Normal Weight"
+                    color = "#38ef7d"
+                    advice = "Great! Maintain your healthy lifestyle."
+                elif bmi < 30:
+                    category = "Overweight"
+                    color = "#F2C94C"
+                    advice = "Consider lifestyle changes to reduce diabetes risk."
+                else:
+                    category = "Obese"
+                    color = "#f45c43"
+                    advice = "Consult a healthcare provider for personalized weight management advice."
+                
+                st.markdown(f"""
+                <div style="background: {color}; padding: 1.5rem; border-radius: 1rem; text-align: center; color: white;">
+                    <h2 style="margin: 0;">Your BMI: {bmi:.1f}</h2>
+                    <h3 style="margin: 0.5rem 0;">{category}</h3>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                st.info(advice)
+                
+                if is_logged_in():
+                    if st.button("Save to Health Log"):
+                        save_health_log(
+                            get_current_user_id(),
+                            'bmi',
+                            weight=calc_weight,
+                            height=calc_height,
+                            bmi=bmi
+                        )
+                        st.success("BMI saved to your health log!")
+        
+        st.markdown("### BMI Categories Reference")
+        bmi_ref = pd.DataFrame({
+            'Category': ['Underweight', 'Normal', 'Overweight', 'Obese Class I', 'Obese Class II', 'Obese Class III'],
+            'BMI Range': ['< 18.5', '18.5 - 24.9', '25 - 29.9', '30 - 34.9', '35 - 39.9', '≥ 40'],
+            'Health Risk': ['Moderate', 'Low', 'Moderate', 'High', 'Very High', 'Extremely High']
+        })
+        st.dataframe(bmi_ref, use_container_width=True, hide_index=True)
+    
+    with tool_tabs[1]:
+        st.markdown("### Calorie Tracker")
+        
+        if not is_logged_in():
+            st.info("Log in to track your daily calories and save your records.")
+        
+        cal_col1, cal_col2 = st.columns(2)
+        
+        with cal_col1:
+            st.markdown("#### Log Calories Consumed")
+            calories_consumed = st.number_input("Calories Consumed", min_value=0, max_value=10000, value=0, key="cal_consumed")
+            meal_notes = st.text_input("Meal Description (optional)", key="meal_notes")
+            
+            if st.button("Log Consumed Calories"):
+                if is_logged_in():
+                    save_health_log(
+                        get_current_user_id(),
+                        'calories',
+                        calories_consumed=calories_consumed,
+                        notes=meal_notes
+                    )
+                    st.success("Calories logged!")
+                else:
+                    st.warning("Please log in to save your calorie records.")
+        
+        with cal_col2:
+            st.markdown("#### Log Calories Burned")
+            calories_burned = st.number_input("Calories Burned", min_value=0, max_value=5000, value=0, key="cal_burned")
+            exercise_notes = st.text_input("Exercise Description (optional)", key="exercise_notes")
+            
+            if st.button("Log Burned Calories"):
+                if is_logged_in():
+                    save_health_log(
+                        get_current_user_id(),
+                        'calories',
+                        calories_burned=calories_burned,
+                        notes=exercise_notes
+                    )
+                    st.success("Calories burned logged!")
+                else:
+                    st.warning("Please log in to save your calorie records.")
+        
+        st.markdown("---")
+        st.markdown("### Daily Calorie Guidelines")
+        
+        calorie_ref = pd.DataFrame({
+            'Activity Level': ['Sedentary', 'Lightly Active', 'Moderately Active', 'Very Active'],
+            'Women (cal/day)': ['1,600-2,000', '1,800-2,200', '2,000-2,400', '2,200-2,600'],
+            'Men (cal/day)': ['2,000-2,400', '2,200-2,600', '2,400-2,800', '2,600-3,200']
+        })
+        st.dataframe(calorie_ref, use_container_width=True, hide_index=True)
+    
+    with tool_tabs[2]:
+        st.markdown("### Exercise Log")
+        
+        if not is_logged_in():
+            st.info("Log in to track your exercise and save your records.")
+        
+        ex_col1, ex_col2 = st.columns(2)
+        
+        with ex_col1:
+            exercise_type = st.selectbox("Exercise Type", [
+                "Walking", "Running", "Cycling", "Swimming", "Strength Training",
+                "Yoga", "HIIT", "Dancing", "Sports", "Other"
+            ])
+            exercise_duration = st.number_input("Duration (minutes)", min_value=1, max_value=480, value=30)
+            exercise_intensity = st.select_slider("Intensity", options=["Light", "Moderate", "Vigorous"])
+            
+            intensity_multiplier = {"Light": 3, "Moderate": 5, "Vigorous": 8}
+            estimated_calories = exercise_duration * intensity_multiplier[exercise_intensity]
+            
+            st.metric("Estimated Calories Burned", f"~{estimated_calories}")
+        
+        with ex_col2:
+            exercise_notes_log = st.text_area("Notes (optional)", key="exercise_log_notes")
+            
+            if st.button("Log Exercise", type="primary"):
+                if is_logged_in():
+                    save_health_log(
+                        get_current_user_id(),
+                        'exercise',
+                        exercise_type=exercise_type,
+                        exercise_minutes=exercise_duration,
+                        calories_burned=estimated_calories,
+                        notes=f"{exercise_intensity} intensity. {exercise_notes_log}"
+                    )
+                    st.success("Exercise logged!")
+                else:
+                    st.warning("Please log in to save your exercise records.")
+        
+        st.markdown("---")
+        st.markdown("### Exercise Recommendations for Diabetes Prevention")
+        
+        exercise_recs = pd.DataFrame({
+            'Exercise': ['Brisk Walking', 'Swimming', 'Cycling', 'Strength Training', 'Yoga'],
+            'Weekly Target': ['150 min', '150 min', '150 min', '2-3 sessions', '2-3 sessions'],
+            'Benefit': ['Improves insulin sensitivity', 'Low impact cardio', 'Burns calories efficiently', 'Builds muscle mass', 'Reduces stress']
+        })
+        st.dataframe(exercise_recs, use_container_width=True, hide_index=True)
+
+
+def render_history_tab():
+    st.markdown("## Your Health History")
+    
+    if not is_logged_in():
+        st.info("Please log in to view your prediction history and health trends.")
+        return
+    
+    user_id = get_current_user_id()
+    
+    stats = get_stats_summary(user_id)
+    
+    if stats.get('total_predictions', 0) > 0:
+        stat_cols = st.columns(4)
+        
+        with stat_cols[0]:
+            st.markdown(f"""
+            <div class="stat-card">
+                <h3 style="margin: 0;">{stats['total_predictions']}</h3>
+                <p style="margin: 0.5rem 0 0 0;">Total Assessments</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with stat_cols[1]:
+            latest_risk = stats.get('latest_risk')
+            st.markdown(f"""
+            <div class="stat-card" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);">
+                <h3 style="margin: 0;">{latest_risk:.1f}%</h3>
+                <p style="margin: 0.5rem 0 0 0;">Latest Risk Score</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with stat_cols[2]:
+            risk_level = stats.get('latest_risk_level', 'N/A')
+            st.markdown(f"""
+            <div class="stat-card" style="background: linear-gradient(135deg, #F2994A 0%, #F2C94C 100%);">
+                <h3 style="margin: 0;">{risk_level}</h3>
+                <p style="margin: 0.5rem 0 0 0;">Current Risk Level</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        with stat_cols[3]:
+            risk_change = stats.get('risk_change')
+            if risk_change is not None:
+                change_text = f"{risk_change:+.1f}%"
+                change_color = "#38ef7d" if risk_change < 0 else "#f45c43"
+            else:
+                change_text = "N/A"
+                change_color = "#667eea"
+            st.markdown(f"""
+            <div class="stat-card" style="background: {change_color};">
+                <h3 style="margin: 0;">{change_text}</h3>
+                <p style="margin: 0.5rem 0 0 0;">Risk Change</p>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("---")
+        
+        trend_col1, trend_col2 = st.columns(2)
+        
+        with trend_col1:
+            trend_data = get_trend_data(user_id, days=90)
+            trend_chart = create_trend_chart(trend_data)
+            if trend_chart:
+                st.plotly_chart(trend_chart, use_container_width=True)
+        
+        with trend_col2:
+            if trend_data['dates']:
+                metrics_df = pd.DataFrame({
+                    'Date': trend_data['dates'],
+                    'Glucose': trend_data['glucose'],
+                    'BMI': trend_data['bmi'],
+                    'Blood Pressure': trend_data['blood_pressure']
+                })
+                
+                fig = go.Figure()
+                fig.add_trace(go.Scatter(x=metrics_df['Date'], y=metrics_df['Glucose'], name='Glucose', mode='lines+markers'))
+                fig.add_trace(go.Scatter(x=metrics_df['Date'], y=metrics_df['BMI'] * 4, name='BMI (scaled)', mode='lines+markers'))
+                fig.add_trace(go.Scatter(x=metrics_df['Date'], y=metrics_df['Blood Pressure'], name='Blood Pressure', mode='lines+markers'))
+                
+                fig.update_layout(
+                    title='Health Metrics Over Time',
+                    xaxis_title='Date',
+                    yaxis_title='Value',
+                    height=350,
+                    hovermode='x unified'
+                )
+                st.plotly_chart(fig, use_container_width=True)
+        
+        st.markdown("---")
+        st.markdown("### Recent Assessments")
+        
+        predictions = get_user_predictions(user_id, limit=10)
+        
+        for pred in predictions:
+            risk_colors = {
+                'Low': '#38ef7d',
+                'Moderate': '#F2C94C',
+                'High': '#f45c43',
+                'Very High': '#8E2DE2'
+            }
+            color = risk_colors.get(pred['risk_level'], '#667eea')
+            
+            st.markdown(f"""
+            <div class="history-card">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div>
+                        <strong>{pred['date'].strftime('%B %d, %Y at %I:%M %p')}</strong><br>
+                        <span style="color: #5A6C7D;">Glucose: {pred['glucose']:.0f} mg/dL | BMI: {pred['bmi']:.1f} | BP: {pred['blood_pressure']:.0f} mmHg</span>
+                    </div>
+                    <div style="text-align: right;">
+                        <span style="background: {color}; color: white; padding: 0.25rem 0.75rem; border-radius: 1rem; font-weight: bold;">
+                            {pred['risk_level']}
+                        </span><br>
+                        <span style="color: #5A6C7D; font-size: 0.9rem;">{pred['risk_probability']*100:.1f}% risk</span>
+                    </div>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+    else:
+        st.markdown("""
+        <div class="info-box">
+            <h4>No Assessment History Yet</h4>
+            <p>Complete your first risk assessment to start tracking your health progress over time!</p>
+            <p>Go to the <strong>Risk Assessment</strong> tab to get started.</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+
+def render_upload_tab():
+    st.markdown("## Upload Medical Test Results")
+    
+    st.markdown("""
+    Upload your medical test results in CSV format to automatically populate your health parameters.
+    This makes it easy to enter data from lab reports or health tracking apps.
+    """)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.markdown("### Upload CSV File")
+        
+        uploaded_file = st.file_uploader("Choose a CSV file", type=['csv'])
+        
+        if uploaded_file is not None:
+            file_content = uploaded_file.read()
+            result = parse_csv_file(file_content)
+            
+            if result['success']:
+                st.success(result['message'])
+                
+                warnings = validate_health_values(result['data'])
+                for warning in warnings:
+                    st.warning(warning)
+                
+                st.markdown("#### Extracted Values")
+                
+                extracted_df = pd.DataFrame([
+                    {'Parameter': k.replace('_', ' ').title(), 'Value': f"{v:.1f}" if isinstance(v, float) else str(v)}
+                    for k, v in result['data'].items()
+                ])
+                st.dataframe(extracted_df, use_container_width=True, hide_index=True)
+                
+                if st.button("Use These Values for Assessment", type="primary"):
+                    prediction_data = convert_to_prediction_format(result)
+                    st.session_state['uploaded_data'] = prediction_data
+                    st.success("Values loaded! Go to Risk Assessment tab to complete your assessment.")
+            else:
+                st.error(result['message'])
+    
+    with col2:
+        st.markdown("### Expected CSV Format")
+        
+        st.markdown("""
+        Your CSV file should contain columns with health measurements. 
+        The system will automatically recognize common column names.
+        
+        **Supported parameters:**
+        - Glucose / Blood Glucose
+        - Blood Pressure / BP
+        - BMI / Body Mass Index
+        - Insulin
+        - Age
+        - Weight & Height (BMI calculated automatically)
+        - Skin Thickness
+        - Pregnancies
+        """)
+        
+        st.markdown("#### Sample Template")
+        sample_csv = get_sample_csv_template()
+        st.code(sample_csv, language='csv')
+        
+        st.download_button(
+            label="Download Sample Template",
+            data=sample_csv,
+            file_name="health_data_template.csv",
+            mime="text/csv"
+        )
+
+
 def main():
     st.markdown('<h1 class="main-header">Diabetes Risk Prediction System</h1>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">AI-Powered Health Assessment & Personalized Recommendations</p>', unsafe_allow_html=True)
@@ -279,31 +692,42 @@ def main():
     predictor = get_predictor()
     
     with st.sidebar:
+        logged_in = render_auth_ui()
+        
+        st.markdown("---")
         st.markdown("## Health Parameters")
         st.markdown("Enter your health information below for a personalized risk assessment.")
         
-        st.markdown("---")
+        uploaded_data = st.session_state.get('uploaded_data', {})
         
         st.markdown("### Personal Information")
-        age = st.slider("Age (years)", min_value=18, max_value=100, value=35, help="Your current age")
-        pregnancies = st.number_input("Number of Pregnancies", min_value=0, max_value=20, value=0, 
+        age = st.slider("Age (years)", min_value=18, max_value=100, 
+                       value=int(uploaded_data.get('Age', 35)), help="Your current age")
+        pregnancies = st.number_input("Number of Pregnancies", min_value=0, max_value=20, 
+                                       value=uploaded_data.get('Pregnancies', 0), 
                                        help="Number of times pregnant (enter 0 if not applicable)")
         
         st.markdown("### Body Measurements")
         height = st.number_input("Height (cm)", min_value=100, max_value=250, value=170)
         weight = st.number_input("Weight (kg)", min_value=30, max_value=250, value=70)
         bmi = weight / ((height/100) ** 2)
+        if uploaded_data.get('BMI'):
+            bmi = uploaded_data['BMI']
         st.metric("Calculated BMI", f"{bmi:.1f}")
         
-        skin_thickness = st.slider("Skin Fold Thickness (mm)", min_value=0, max_value=100, value=20,
+        skin_thickness = st.slider("Skin Fold Thickness (mm)", min_value=0, max_value=100, 
+                                    value=int(uploaded_data.get('SkinThickness', 20)),
                                     help="Triceps skin fold thickness in mm")
         
         st.markdown("### Blood Tests")
-        glucose = st.slider("Blood Glucose (mg/dL)", min_value=50, max_value=300, value=100,
+        glucose = st.slider("Blood Glucose (mg/dL)", min_value=50, max_value=300, 
+                            value=int(uploaded_data.get('Glucose', 100)),
                             help="Fasting blood glucose level")
-        blood_pressure = st.slider("Blood Pressure - Diastolic (mmHg)", min_value=40, max_value=140, value=70,
+        blood_pressure = st.slider("Blood Pressure - Diastolic (mmHg)", min_value=40, max_value=140, 
+                                    value=int(uploaded_data.get('BloodPressure', 70)),
                                     help="Diastolic blood pressure")
-        insulin = st.slider("Insulin Level (μU/mL)", min_value=0, max_value=500, value=80,
+        insulin = st.slider("Insulin Level (μU/mL)", min_value=0, max_value=500, 
+                            value=int(uploaded_data.get('Insulin', 80)),
                             help="2-Hour serum insulin")
         
         st.markdown("### Family History")
@@ -326,7 +750,17 @@ def main():
         st.markdown("---")
         predict_button = st.button("Analyze My Risk", type="primary", use_container_width=True)
     
-    tab1, tab2, tab3 = st.tabs(["Risk Assessment", "Health Recommendations", "Educational Resources"])
+    if is_logged_in():
+        tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+            "Risk Assessment", "Health Recommendations", "History & Trends", 
+            "Health Tools", "Upload Data", "Educational Resources"
+        ])
+    else:
+        tab1, tab2, tab4, tab5, tab6 = st.tabs([
+            "Risk Assessment", "Health Recommendations", 
+            "Health Tools", "Upload Data", "Educational Resources"
+        ])
+        tab3 = None
     
     with tab1:
         if predict_button or 'prediction_result' in st.session_state:
@@ -415,6 +849,17 @@ def main():
                     </div>
                 </div>
                 """, unsafe_allow_html=True)
+            
+            if is_logged_in():
+                save_col1, save_col2 = st.columns([3, 1])
+                with save_col2:
+                    if st.button("Save This Assessment"):
+                        risk_factors = predictor.get_risk_factors(user_data)
+                        recommendations = generate_health_recommendations(user_data, result, risk_factors)
+                        if save_prediction(get_current_user_id(), user_data, result, recommendations):
+                            st.success("Assessment saved to your history!")
+                        else:
+                            st.error("Failed to save assessment.")
             
             st.markdown("---")
             
@@ -518,10 +963,29 @@ def main():
                     st.session_state['prediction_result'],
                     risk_factors
                 )
+                st.session_state['recommendations'] = recommendations
             
             display_recommendations(recommendations)
             
             st.markdown("---")
+            
+            if 'recommendations' in st.session_state:
+                pdf_col1, pdf_col2 = st.columns([3, 1])
+                with pdf_col2:
+                    pdf_bytes = generate_pdf_report(
+                        st.session_state['user_data'],
+                        st.session_state['prediction_result'],
+                        st.session_state['recommendations'],
+                        get_current_username() if is_logged_in() else "User"
+                    )
+                    st.download_button(
+                        label="Download PDF Report",
+                        data=pdf_bytes,
+                        file_name="diabetes_risk_report.pdf",
+                        mime="application/pdf",
+                        type="primary"
+                    )
+            
             st.markdown("""
             <div class="warning-box">
                 <strong>Important Disclaimer:</strong> These recommendations are for educational purposes only 
@@ -532,7 +996,17 @@ def main():
         else:
             st.info("Please complete the risk assessment first to receive personalized recommendations.")
     
-    with tab3:
+    if tab3 is not None:
+        with tab3:
+            render_history_tab()
+    
+    with tab4:
+        render_health_tools_tab()
+    
+    with tab5:
+        render_upload_tab()
+    
+    with tab6:
         st.markdown("## Understanding Diabetes")
         
         st.markdown("""
