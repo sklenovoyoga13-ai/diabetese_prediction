@@ -2,15 +2,12 @@ import os
 import json
 from openai import OpenAI
 
-# the newest OpenAI model is "gpt-5" which was released August 7, 2025.
-# do not change this unless explicitly requested by the user
-
-OPENAI_API_KEY = os.environ.get("OPENAI_API_KEY")
-
 def get_openai_client():
-    if not OPENAI_API_KEY:
+    # Get API key dynamically to ensure it's loaded after secrets are set
+    api_key = os.environ.get("OPENAI_API_KEY")
+    if not api_key:
         return None
-    return OpenAI(api_key=OPENAI_API_KEY)
+    return OpenAI(api_key=api_key)
 
 def generate_health_recommendations(user_data, prediction_result, risk_factors):
     client = get_openai_client()
@@ -60,7 +57,7 @@ Provide 3-4 recommendations per category. Be specific and actionable. Consider t
 
     try:
         response = client.chat.completions.create(
-            model="gpt-5",
+            model="gpt-4o",
             messages=[
                 {
                     "role": "system",
