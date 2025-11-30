@@ -258,46 +258,62 @@ def display_recommendations(recommendations):
     col1, col2 = st.columns(2)
     
     with col1:
-        st.markdown("#### Diet Recommendations")
-        for rec in recommendations.get('diet_recommendations', []):
-            priority_class = f"priority-{rec.get('priority', 'medium')}"
-            st.markdown(f"""
-            <div class="recommendation-card {priority_class}">
-                <strong>{rec.get('title', 'Recommendation')}</strong><br>
-                <small>{rec.get('description', '')}</small>
-            </div>
-            """, unsafe_allow_html=True)
+        st.markdown("#### 🍎 Diet Recommendations")
+        diet_recs = recommendations.get('diet_recommendations', [])
+        if diet_recs:
+            for i, rec in enumerate(diet_recs):
+                priority_class = f"priority-{rec.get('priority', 'medium')}"
+                st.markdown(f"""
+                <div class="recommendation-card {priority_class}" style="padding: 1.5rem; margin-bottom: 1rem;">
+                    <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
+                    <p style="margin: 0;">{rec.get('description', '')}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No diet recommendations available")
         
-        st.markdown("#### Lifestyle Recommendations")
-        for rec in recommendations.get('lifestyle_recommendations', []):
-            priority_class = f"priority-{rec.get('priority', 'medium')}"
-            st.markdown(f"""
-            <div class="recommendation-card {priority_class}">
-                <strong>{rec.get('title', 'Recommendation')}</strong><br>
-                <small>{rec.get('description', '')}</small>
-            </div>
-            """, unsafe_allow_html=True)
+        st.markdown("#### 🧘 Lifestyle Recommendations")
+        lifestyle_recs = recommendations.get('lifestyle_recommendations', [])
+        if lifestyle_recs:
+            for rec in lifestyle_recs:
+                priority_class = f"priority-{rec.get('priority', 'medium')}"
+                st.markdown(f"""
+                <div class="recommendation-card {priority_class}" style="padding: 1.5rem; margin-bottom: 1rem;">
+                    <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
+                    <p style="margin: 0;">{rec.get('description', '')}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No lifestyle recommendations available")
     
     with col2:
-        st.markdown("#### Exercise Recommendations")
-        for rec in recommendations.get('exercise_recommendations', []):
-            priority_class = f"priority-{rec.get('priority', 'medium')}"
-            st.markdown(f"""
-            <div class="recommendation-card {priority_class}">
-                <strong>{rec.get('title', 'Recommendation')}</strong><br>
-                <small>{rec.get('description', '')}</small>
-            </div>
-            """, unsafe_allow_html=True)
+        st.markdown("#### 🏃 Exercise Recommendations")
+        exercise_recs = recommendations.get('exercise_recommendations', [])
+        if exercise_recs:
+            for rec in exercise_recs:
+                priority_class = f"priority-{rec.get('priority', 'medium')}"
+                st.markdown(f"""
+                <div class="recommendation-card {priority_class}" style="padding: 1.5rem; margin-bottom: 1rem;">
+                    <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
+                    <p style="margin: 0;">{rec.get('description', '')}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No exercise recommendations available")
         
-        st.markdown("#### Medical Advice")
-        for rec in recommendations.get('medical_advice', []):
-            priority_class = f"priority-{rec.get('priority', 'medium')}"
-            st.markdown(f"""
-            <div class="recommendation-card {priority_class}">
-                <strong>{rec.get('title', 'Recommendation')}</strong><br>
-                <small>{rec.get('description', '')}</small>
-            </div>
-            """, unsafe_allow_html=True)
+        st.markdown("#### 💊 Medical Advice")
+        medical_recs = recommendations.get('medical_advice', [])
+        if medical_recs:
+            for rec in medical_recs:
+                priority_class = f"priority-{rec.get('priority', 'medium')}"
+                st.markdown(f"""
+                <div class="recommendation-card {priority_class}" style="padding: 1.5rem; margin-bottom: 1rem;">
+                    <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
+                    <p style="margin: 0;">{rec.get('description', '')}</p>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("No medical advice available")
     
     col3, col4 = st.columns(2)
     
