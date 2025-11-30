@@ -780,12 +780,16 @@ def main():
                 st.session_state['prediction_result'] = result
                 st.session_state['user_data'] = user_data
             
-            col1, col2, col3 = st.columns([1, 1, 1])
+            st.markdown("## Your Assessment Results")
+            
+            col1, col2, col3 = st.columns(3)
             
             with col1:
+                st.markdown("### Diabetes Risk")
                 st.plotly_chart(create_gauge_chart(result['probability_diabetes']), use_container_width=True, key="risk_gauge")
             
             with col2:
+                st.markdown("### Risk Level")
                 risk_level = result['risk_level']
                 risk_colors = {
                     'Low': '#38ef7d',
@@ -794,17 +798,12 @@ def main():
                     'Very High': '#8E2DE2'
                 }
                 
-                st.markdown(f"""
-                <div style="background: linear-gradient(135deg, {risk_colors[risk_level]}80 0%, {risk_colors[risk_level]} 100%); 
-                            padding: 2rem; border-radius: 1rem; text-align: center; color: white; height: 200px;
-                            display: flex; flex-direction: column; justify-content: center;">
-                    <h2 style="margin: 0; font-size: 1.5rem;">Risk Level</h2>
-                    <h1 style="margin: 0.5rem 0; font-size: 2.5rem;">{risk_level}</h1>
-                    <p style="margin: 0;">Based on your health parameters</p>
-                </div>
-                """, unsafe_allow_html=True)
+                with st.container(border=True):
+                    st.markdown(f"<h1 style='text-align: center; color: {risk_colors[risk_level]};'>{risk_level}</h1>", unsafe_allow_html=True)
+                    st.markdown("<p style='text-align: center; color: #666;'>Based on your health parameters</p>", unsafe_allow_html=True)
             
             with col3:
+                st.markdown("### Health Insights")
                 bmi_val = user_data['BMI']
                 if bmi_val < 18.5:
                     bmi_category = "Underweight"
@@ -830,25 +829,16 @@ def main():
                     glucose_status = "Diabetic Range"
                     glucose_color = "#f45c43"
                 
-                st.markdown(f"""
-                <div style="background: #f8f9fa; padding: 1rem; border-radius: 1rem;">
-                    <h4 style="color: #1E3A5F; margin-bottom: 0.5rem; text-align: center;">Your Health Insights</h4>
-                    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-                        <div style="background: white; padding: 0.5rem; border-radius: 0.5rem; border-left: 3px solid {bmi_color};">
-                            <small style="color: #5A6C7D;">BMI Status</small><br>
-                            <strong style="color: {bmi_color};">{bmi_category}</strong> ({bmi_val:.1f})
-                        </div>
-                        <div style="background: white; padding: 0.5rem; border-radius: 0.5rem; border-left: 3px solid {glucose_color};">
-                            <small style="color: #5A6C7D;">Glucose Status</small><br>
-                            <strong style="color: {glucose_color};">{glucose_status}</strong> ({glucose_val} mg/dL)
-                        </div>
-                        <div style="background: white; padding: 0.5rem; border-radius: 0.5rem; border-left: 3px solid #667eea;">
-                            <small style="color: #5A6C7D;">Risk Score</small><br>
-                            <strong style="color: #1E3A5F;">{result['probability_diabetes']*100:.0f}/100</strong>
-                        </div>
-                    </div>
-                </div>
-                """, unsafe_allow_html=True)
+                with st.container(border=True):
+                    with st.container(border=True):
+                        st.markdown(f"**BMI Status**")
+                        st.markdown(f"<span style='color: {bmi_color}; font-size: 1.1rem;'>{bmi_category}</span> - {bmi_val:.1f}", unsafe_allow_html=True)
+                    with st.container(border=True):
+                        st.markdown(f"**Glucose Status**")
+                        st.markdown(f"<span style='color: {glucose_color}; font-size: 1.1rem;'>{glucose_status}</span> - {glucose_val} mg/dL", unsafe_allow_html=True)
+                    with st.container(border=True):
+                        st.markdown(f"**Risk Score**")
+                        st.markdown(f"<strong style='font-size: 1.3rem;'>{result['probability_diabetes']*100:.0f}/100</strong>", unsafe_allow_html=True)
             
             if is_logged_in():
                 save_col1, save_col2 = st.columns([3, 1])
@@ -861,39 +851,38 @@ def main():
                         else:
                             st.error("Failed to save assessment.")
             
-            st.markdown("---")
+            st.divider()
+            st.markdown("## Analysis Charts")
             
             col4, col5 = st.columns(2)
             
             with col4:
+                st.markdown("### Risk Factors")
                 importance = predictor.get_feature_importance()
                 st.plotly_chart(create_feature_importance_chart(importance), use_container_width=True, key="feature_importance")
             
             with col5:
+                st.markdown("### Your Values vs Normal Range")
                 st.plotly_chart(create_risk_comparison_chart(user_data), use_container_width=True, key="risk_comparison")
             
+            st.divider()
             risk_factors = predictor.get_risk_factors(user_data)
             if risk_factors:
-                st.markdown("### Identified Risk Factors")
+                st.markdown("## Identified Risk Factors")
                 
                 cols = st.columns(len(risk_factors) if len(risk_factors) <= 4 else 4)
                 for i, factor in enumerate(risk_factors[:4]):
                     with cols[i % 4]:
-                        severity_colors = {
-                            'high': '#f45c43',
-                            'moderate': '#F2C94C',
-                            'low': '#38ef7d'
-                        }
-                        color = severity_colors.get(factor['severity'], '#667eea')
-                        st.markdown(f"""
-                        <div style="background: white; padding: 1rem; border-radius: 0.5rem; 
-                                    border-left: 4px solid {color}; margin-bottom: 1rem;
-                                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-                            <strong style="color: #1E3A5F;">{factor['factor']}</strong><br>
-                            <span style="font-size: 1.5rem; color: {color};">{factor['value']}</span><br>
-                            <small style="color: #5A6C7D;">Normal: {factor['normal_range']}</small>
-                        </div>
-                        """, unsafe_allow_html=True)
+                        with st.container(border=True):
+                            st.markdown(f"**{factor['factor']}**")
+                            severity_colors = {
+                                'high': '#f45c43',
+                                'moderate': '#F2C94C',
+                                'low': '#38ef7d'
+                            }
+                            color = severity_colors.get(factor['severity'], '#667eea')
+                            st.markdown(f"<div style='font-size: 1.5rem; color: {color}; text-align: center;'>{factor['value']}</div>", unsafe_allow_html=True)
+                            st.caption(f"Normal: {factor['normal_range']}")
         else:
             st.markdown("""
             <div class="info-box">
