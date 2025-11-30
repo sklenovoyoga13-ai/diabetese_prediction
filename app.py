@@ -265,14 +265,10 @@ def display_recommendations(recommendations):
         st.markdown("#### 🍎 Diet Recommendations")
         diet_recs = recommendations.get('diet_recommendations', [])
         if diet_recs:
-            for i, rec in enumerate(diet_recs):
-                priority_class = f"priority-{rec.get('priority', 'medium')}"
-                st.markdown(f"""
-                <div class="recommendation-card {priority_class}">
-                    <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
-                    <p style="margin: 0;">{rec.get('description', '')}</p>
-                </div>
-                """, unsafe_allow_html=True)
+            for rec in diet_recs:
+                with st.container(border=True):
+                    st.markdown(f"**{rec.get('title', 'Recommendation')}**")
+                    st.write(rec.get('description', ''))
         else:
             st.info("No diet recommendations available")
         
@@ -280,13 +276,9 @@ def display_recommendations(recommendations):
         lifestyle_recs = recommendations.get('lifestyle_recommendations', [])
         if lifestyle_recs:
             for rec in lifestyle_recs:
-                priority_class = f"priority-{rec.get('priority', 'medium')}"
-                st.markdown(f"""
-                <div class="recommendation-card {priority_class}">
-                    <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
-                    <p style="margin: 0;">{rec.get('description', '')}</p>
-                </div>
-                """, unsafe_allow_html=True)
+                with st.container(border=True):
+                    st.markdown(f"**{rec.get('title', 'Recommendation')}**")
+                    st.write(rec.get('description', ''))
         else:
             st.info("No lifestyle recommendations available")
     
@@ -295,13 +287,9 @@ def display_recommendations(recommendations):
         exercise_recs = recommendations.get('exercise_recommendations', [])
         if exercise_recs:
             for rec in exercise_recs:
-                priority_class = f"priority-{rec.get('priority', 'medium')}"
-                st.markdown(f"""
-                <div class="recommendation-card {priority_class}">
-                    <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
-                    <p style="margin: 0;">{rec.get('description', '')}</p>
-                </div>
-                """, unsafe_allow_html=True)
+                with st.container(border=True):
+                    st.markdown(f"**{rec.get('title', 'Recommendation')}**")
+                    st.write(rec.get('description', ''))
         else:
             st.info("No exercise recommendations available")
         
@@ -309,13 +297,9 @@ def display_recommendations(recommendations):
         medical_recs = recommendations.get('medical_advice', [])
         if medical_recs:
             for rec in medical_recs:
-                priority_class = f"priority-{rec.get('priority', 'medium')}"
-                st.markdown(f"""
-                <div class="recommendation-card {priority_class}">
-                    <strong style="font-size: 1.2rem; display: block; margin-bottom: 0.5rem;">{rec.get('title', 'Recommendation')}</strong>
-                    <p style="margin: 0;">{rec.get('description', '')}</p>
-                </div>
-                """, unsafe_allow_html=True)
+                with st.container(border=True):
+                    st.markdown(f"**{rec.get('title', 'Recommendation')}**")
+                    st.write(rec.get('description', ''))
         else:
             st.info("No medical advice available")
     
@@ -323,19 +307,15 @@ def display_recommendations(recommendations):
     
     with col3:
         if recommendations.get('warning_signs'):
-            st.markdown("#### Warning Signs to Watch")
-            st.markdown("""<div class="warning-box">""", unsafe_allow_html=True)
+            st.markdown("#### ⚠️ Warning Signs to Watch")
             for sign in recommendations['warning_signs']:
-                st.markdown(f"- {sign}")
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.warning(f"• {sign}")
     
     with col4:
         if recommendations.get('positive_factors'):
-            st.markdown("#### Positive Health Factors")
-            st.markdown("""<div class="info-box">""", unsafe_allow_html=True)
+            st.markdown("#### ✅ Positive Health Factors")
             for factor in recommendations['positive_factors']:
-                st.markdown(f"- {factor}")
-            st.markdown("</div>", unsafe_allow_html=True)
+                st.success(f"• {factor}")
 
 
 def render_health_tools_tab():
