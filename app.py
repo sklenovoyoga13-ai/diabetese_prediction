@@ -807,38 +807,24 @@ def main():
                 bmi_val = user_data['BMI']
                 if bmi_val < 18.5:
                     bmi_category = "Underweight"
-                    bmi_color = "#F2C94C"
                 elif bmi_val < 25:
                     bmi_category = "Normal"
-                    bmi_color = "#38ef7d"
                 elif bmi_val < 30:
                     bmi_category = "Overweight"
-                    bmi_color = "#F2C94C"
                 else:
                     bmi_category = "Obese"
-                    bmi_color = "#f45c43"
                 
                 glucose_val = user_data['Glucose']
                 if glucose_val < 100:
                     glucose_status = "Normal"
-                    glucose_color = "#38ef7d"
                 elif glucose_val < 126:
                     glucose_status = "Pre-diabetic"
-                    glucose_color = "#F2C94C"
                 else:
                     glucose_status = "Diabetic Range"
-                    glucose_color = "#f45c43"
                 
-                with st.container(border=True):
-                    with st.container(border=True):
-                        st.markdown(f"**BMI Status**")
-                        st.markdown(f"<span style='color: {bmi_color}; font-size: 1.1rem;'>{bmi_category}</span> - {bmi_val:.1f}", unsafe_allow_html=True)
-                    with st.container(border=True):
-                        st.markdown(f"**Glucose Status**")
-                        st.markdown(f"<span style='color: {glucose_color}; font-size: 1.1rem;'>{glucose_status}</span> - {glucose_val} mg/dL", unsafe_allow_html=True)
-                    with st.container(border=True):
-                        st.markdown(f"**Risk Score**")
-                        st.markdown(f"<strong style='font-size: 1.3rem;'>{result['probability_diabetes']*100:.0f}/100</strong>", unsafe_allow_html=True)
+                st.metric("BMI Status", f"{bmi_category}", f"{bmi_val:.1f}")
+                st.metric("Glucose Status", glucose_status, f"{glucose_val} mg/dL")
+                st.metric("Risk Score", f"{result['probability_diabetes']*100:.0f}/100")
             
             if is_logged_in():
                 save_col1, save_col2 = st.columns([3, 1])
