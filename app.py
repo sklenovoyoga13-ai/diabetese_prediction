@@ -579,7 +579,7 @@ def render_history_tab():
         
         predictions = get_user_predictions(user_id, limit=10)
         
-        for pred in predictions:
+        for idx, pred in enumerate(predictions):
             risk_colors = {
                 'Low': '#38ef7d',
                 'Moderate': '#F2C94C',
@@ -603,7 +603,7 @@ def render_history_tab():
                     </div>
                 </div>
             </div>
-            """, unsafe_allow_html=True)
+            """, unsafe_allow_html=True, key=f"history_card_{idx}")
     else:
         st.markdown("""
         <div class="info-box">
@@ -783,7 +783,7 @@ def main():
             col1, col2, col3 = st.columns([1, 1, 1])
             
             with col1:
-                st.plotly_chart(create_gauge_chart(result['probability_diabetes']), use_container_width=True)
+                st.plotly_chart(create_gauge_chart(result['probability_diabetes']), use_container_width=True, key="risk_gauge")
             
             with col2:
                 risk_level = result['risk_level']
@@ -867,10 +867,10 @@ def main():
             
             with col4:
                 importance = predictor.get_feature_importance()
-                st.plotly_chart(create_feature_importance_chart(importance), use_container_width=True)
+                st.plotly_chart(create_feature_importance_chart(importance), use_container_width=True, key="feature_importance")
             
             with col5:
-                st.plotly_chart(create_risk_comparison_chart(user_data), use_container_width=True)
+                st.plotly_chart(create_risk_comparison_chart(user_data), use_container_width=True, key="risk_comparison")
             
             risk_factors = predictor.get_risk_factors(user_data)
             if risk_factors:
@@ -1091,7 +1091,7 @@ def main():
                 xaxis_title="",
                 yaxis_title="Times Higher Risk"
             )
-            st.plotly_chart(fig_risk, use_container_width=True)
+            st.plotly_chart(fig_risk, use_container_width=True, key="risk_factors_chart")
         
         with col2:
             st.markdown("""
@@ -1130,7 +1130,7 @@ def main():
                 xaxis_title="",
                 yaxis_title="% Risk Reduction"
             )
-            st.plotly_chart(fig_prevention, use_container_width=True)
+            st.plotly_chart(fig_prevention, use_container_width=True, key="prevention_strategies_chart")
         
         st.markdown("---")
         
@@ -1167,7 +1167,7 @@ def main():
                 title={'text': "Glucose Scale (mg/dL)"}
             ))
             fig_glucose.update_layout(height=200, margin=dict(l=20, r=20, t=50, b=20))
-            st.plotly_chart(fig_glucose, use_container_width=True)
+            st.plotly_chart(fig_glucose, use_container_width=True, key="glucose_scale_gauge")
         
         st.markdown("---")
         
@@ -1179,7 +1179,7 @@ def main():
         
         with model_col1:
             fig = create_feature_importance_chart(importance)
-            st.plotly_chart(fig, use_container_width=True)
+            st.plotly_chart(fig, use_container_width=True, key="model_feature_importance")
         
         with model_col2:
             st.markdown("""
